@@ -7,6 +7,7 @@ from tf2_geometry_msgs.tf2_geometry_msgs import do_transform_point
 from visualization_msgs.msg import Marker, MarkerArray
 from sensor_msgs.msg import LaserScan
 import numpy as np
+import random
 
 
 class PointTransformer(Node):
@@ -22,15 +23,14 @@ class PointTransformer(Node):
         
         # Schedule the transformation after 2 seconds to ensure tf2 has time to receive transforms
         # self.timer = self.create_timer(2.0, self.transform_point)
+        # self.marker_publisher = self.create_publisher(Marker, 'visualization_marker', 10)
 
-        self.marker_publisher = self.create_publisher(Marker, 'visualization_marker', 10)
         self.image_subscriber = self.create_subscription(LaserScan, "/scan", self.lidar_callback ,10)
         self.image_publisher = self.create_publisher(LaserScan, "/scan_modified", 10)
-
         self.lidar_list_offset = 809
 
 
-    def create_points(self):
+    def create_circle_obstacle(self):
         # Reset the obstacle points lists in both frames
         self.obstacle_points_list = []
         self.transformed_points_list = []
@@ -44,14 +44,46 @@ class PointTransformer(Node):
             contour_point.header.frame_id = 'map'
             contour_point.header.stamp = self.get_clock().now().to_msg()
             contour_point.point.x = 0.3 * np.cos(i/n_points * 2*np.pi) + 1.0
-            contour_point.point.y = 0.3 * np.sin(i/n_points * 2*np.pi) + 1.0
+            contour_point.point.y = 0.3 * np.sin(i/n_points * 2*np.pi) - 1.0
             contour_point.point.z = 0.0
             self.obstacle_points_list.append(contour_point)
+
+            # try:
+            #    map_marker = self.create_marker(contour_point, 'map', 0)
+            #    self.marker_publisher.publish(map_marker)
+            # except:
+            #    pass
         
+
+    def create_dust_points(self):
+        # This dust cloud is a noisy circle to give illusion of moving dust
+        # Reset the obstacle points lists in both frames
+        self.obstacle_points_list = []
+        self.transformed_points_list = []
+        self.obstacle_dist_list = []
+        self.obstacle_angle_list = []
+
+        # Create virtual obstacle points
+        n_points = 20
+        radius = 0.3
+        for i in range (n_points):
+            contour_point = PointStamped()
+            contour_point.header.frame_id = 'map'
+            contour_point.header.stamp = self.get_clock().now().to_msg()
+            contour_point.point.x = (radius + random.uniform(-0.2, 0.2)) * np.cos(i/n_points * 2*np.pi) + 1.0
+            contour_point.point.y = (radius + random.uniform(-0.2, 0.2)) * np.sin(i/n_points * 2*np.pi) - 1.0
+            contour_point.point.z = 0.0
+            self.obstacle_points_list.append(contour_point)
+
+            # try:
+            #    map_marker = self.create_marker(contour_point, 'map', 0)
+            #    self.marker_publisher.publish(map_marker)
+            # except:
+            #    pass
 
 
     def transform_point(self):
-        self.create_points()
+        self.create_dust_points()
         try:
             # Lookup the transform from 'map' to 'base_link'
             transform = self.tf_buffer.lookup_transform('base_link', 'map', rclpy.time.Time())
@@ -64,13 +96,15 @@ class PointTransformer(Node):
                 angle_to_obstacle = np.arctan2(transformed_point.point.y, transformed_point.point.x) + np.pi # Returns angle between 0 and 2*pi
                 self.obstacle_dist_list.append(dist_to_obstacle) 
                 self.obstacle_angle_list.append(angle_to_obstacle)
+                
+                for i in range(1, len(self.obstacle_dist_list)-1):
+                    if self.obstacle_dist_list[i] > self.obstacle_dist_list[i-1]*1.01 and self.obstacle_dist_list[i] > self.obstacle_dist_list[i+1]*1.01:
+                        self.obstacle_dist_list[i] = (self.obstacle_dist_list[i+1] + self.obstacle_dist_list[i-1])/2
+
                 # self.get_logger().info(f"Transformed point: {transformed_point.point.x}, {transformed_point.point.y}")
                 # self.get_logger().info(f"Transformed point distance: {dist_to_obstacle}")
                 # self.get_logger().info(f"Transformed point angle: {angle_to_obstacle}")
                 # Points on the other side of the obstacle might be sent to LiDAR ranges list, this reduces issue
-                for i in range(1, len(self.obstacle_dist_list)-1):
-                    if self.obstacle_dist_list[i] > self.obstacle_dist_list[i-1]*1.01 and self.obstacle_dist_list[i] > self.obstacle_dist_list[i+1]*1.01:
-                        self.obstacle_dist_list[i] = (self.obstacle_dist_list[i+1] + self.obstacle_dist_list[i-1])/2
 
         except Exception as e:
             self.get_logger().error(f"Could not transform point: {str(e)}")
@@ -102,9 +136,9 @@ class PointTransformer(Node):
         marker.pose.orientation.y = 0.0
         marker.pose.orientation.z = 0.0
         marker.pose.orientation.w = 1.0
-        marker.scale.x = 0.2
-        marker.scale.y = 0.2
-        marker.scale.z = 0.2
+        marker.scale.x = 0.05
+        marker.scale.y = 0.05
+        marker.scale.z = 0.05
         marker.color.a = 1.0
         marker.color.r = 0.0
         marker.color.g = 1.0 if frame_id == 'map' else 0.0
@@ -112,7 +146,7 @@ class PointTransformer(Node):
         return marker
     
 
-    def lidar_mod(self, msg : LaserScan, modified_range):
+    def lidar_mod(self, msg : LaserScan, modified_range, modified_intensities):
         # Modification for obstacle points
         for ang_index, angles in enumerate(self.obstacle_angle_list):
             obstacle_index = int((len(msg.ranges)-1) * angles / (2*np.pi))
@@ -124,10 +158,13 @@ class PointTransformer(Node):
             if obstacle_index + self.lidar_list_offset > len(msg.ranges) - 1:
                 if modified_range[obstacle_index + self.lidar_list_offset - len(msg.ranges)] > self.obstacle_dist_list[ang_index]:  # See if virtual obstacle is closer than wall
                     modified_range[obstacle_index + self.lidar_list_offset - len(msg.ranges)] = self.obstacle_dist_list[ang_index]
+                    modified_intensities[obstacle_index + self.lidar_list_offset - len(msg.ranges)] = 1.5  # Dust has lidar intensity between 1 and 2 
+
             else:
                 if modified_range[obstacle_index + self.lidar_list_offset] > self.obstacle_dist_list[ang_index]:  # See if virtual obstacle is closer than wall
                     modified_range[obstacle_index + self.lidar_list_offset] = self.obstacle_dist_list[ang_index]
-        return modified_range
+                    modified_intensities[obstacle_index + self.lidar_list_offset] = 1.5  # Dust has lidar intensity between 1 and 2 
+        return modified_range, modified_intensities
     
 
     def lidar_callback(self, msg : LaserScan):
@@ -144,9 +181,9 @@ class PointTransformer(Node):
         modified_msg.range_max = msg.range_max
         modified_msg.intensities = msg.intensities  # Keep intensities unchanged
 
-        # Change LiDAR ranges for the new modified_msg
+        # Change LiDAR ranges and intensities for the new modified_msg
 
-        modified_msg.ranges = self.lidar_mod(msg, msg.ranges)  # If you want changes
+        modified_msg.ranges, modified_msg.intensities = self.lidar_mod(msg, msg.ranges, modified_msg.intensities)  # If you want changes
         #modified_msg.ranges = msg.ranges  # If you don't want changes
         self.image_publisher.publish(modified_msg)
 
