@@ -1,3 +1,5 @@
+# Written By Simon Martineau
+
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PointStamped
@@ -20,16 +22,16 @@ class PointTransformer(Node):
         self.transformed_points_list = [] # Initialise obstacle points list in the base_link frame
         self.obstacle_dist_list = [] # List of euclidian distance to obstacle points in base_link frame
         self.obstacle_angle_list = [] # List of angles to obstacle points in base_link frame
+
+        self.image_subscriber = self.create_subscription(LaserScan, "/scan", self.lidar_callback ,10)
+        self.image_publisher = self.create_publisher(LaserScan, "/scan_modified", 10)
+        self.lidar_list_offset = 809
         
         # Schedule the transformation after 2 seconds to ensure tf2 has time to receive transforms
         # self.timer = self.create_timer(2.0, self.transform_point)
         # self.marker_publisher = self.create_publisher(Marker, 'visualization_marker', 10)
 
-        self.image_subscriber = self.create_subscription(LaserScan, "/scan", self.lidar_callback ,10)
-        self.image_publisher = self.create_publisher(LaserScan, "/scan_modified", 10)
-        self.lidar_list_offset = 809
-
-
+        
     def create_circle_obstacle(self):
         # Reset the obstacle points lists in both frames
         self.obstacle_points_list = []
@@ -64,14 +66,14 @@ class PointTransformer(Node):
         self.obstacle_angle_list = []
 
         # Create virtual obstacle points
-        n_points = 20
+        n_points = 300
         radius = 0.3
         for i in range (n_points):
             contour_point = PointStamped()
             contour_point.header.frame_id = 'map'
             contour_point.header.stamp = self.get_clock().now().to_msg()
-            contour_point.point.x = (radius + random.uniform(-0.2, 0.2)) * np.cos(i/n_points * 2*np.pi) + 1.0
-            contour_point.point.y = (radius + random.uniform(-0.2, 0.2)) * np.sin(i/n_points * 2*np.pi) - 1.0
+            contour_point.point.x = (radius + random.uniform(0.0, 0.2)) * np.cos(i/n_points * 2*np.pi) + 1.0
+            contour_point.point.y = (radius + random.uniform(0.0, 0.2)) * np.sin(i/n_points * 2*np.pi) - 1.0
             contour_point.point.z = 0.0
             self.obstacle_points_list.append(contour_point)
 
