@@ -29,7 +29,7 @@ class PointTransformer(Node):
         
         # Schedule the transformation after 2 seconds to ensure tf2 has time to receive transforms
         # self.timer = self.create_timer(2.0, self.transform_point)
-        # self.marker_publisher = self.create_publisher(Marker, 'visualization_marker', 10)
+        self.marker_publisher = self.create_publisher(Marker, 'visualization_marker', 10)
 
         
     def create_circle_obstacle(self):
@@ -40,25 +40,19 @@ class PointTransformer(Node):
         self.obstacle_angle_list = []
 
         # Create virtual obstacle points
-        n_points = 20
+        n_points = 100
+        radius = 0.3
         for i in range (n_points):
             contour_point = PointStamped()
             contour_point.header.frame_id = 'map'
             contour_point.header.stamp = self.get_clock().now().to_msg()
-            contour_point.point.x = 0.3 * np.cos(i/n_points * 2*np.pi) + 1.0
-            contour_point.point.y = 0.3 * np.sin(i/n_points * 2*np.pi) - 1.0
+            contour_point.point.x = radius * np.cos(i/n_points * 2*np.pi) - 1.0
+            contour_point.point.y = radius * np.sin(i/n_points * 2*np.pi) + 1.0
             contour_point.point.z = 0.0
             self.obstacle_points_list.append(contour_point)
 
-            # try:
-            #    map_marker = self.create_marker(contour_point, 'map', 0)
-            #    self.marker_publisher.publish(map_marker)
-            # except:
-            #    pass
-        
 
-    def create_dust_points(self):
-        # This dust cloud is a noisy circle to give illusion of moving dust
+    def create_oval_obstacle(self):
         # Reset the obstacle points lists in both frames
         self.obstacle_points_list = []
         self.transformed_points_list = []
@@ -66,26 +60,47 @@ class PointTransformer(Node):
         self.obstacle_angle_list = []
 
         # Create virtual obstacle points
-        n_points = 300
+        n_points = 100
+        x_radius = 0.3
+        y_radius = 0.1
+        orientation = 90 * np.pi/180
+        for i in range (n_points):
+            contour_point = PointStamped()
+            contour_point.header.frame_id = 'map'
+            contour_point.header.stamp = self.get_clock().now().to_msg()
+            contour_point.point.x = (x_radius * np.cos(i/n_points * 2*np.pi) - 1.0) * np.cos(orientation)
+            contour_point.point.y = (y_radius * np.sin(i/n_points * 2*np.pi) + 1.0) * np.sin(orientation)
+            contour_point.point.z = 0.0
+            self.obstacle_points_list.append(contour_point)
+        
+
+    def create_dust_points(self):
+        # This dust cloud is a noisy oval to give illusion of moving dust
+        # Reset the obstacle points lists in both frames
+        self.obstacle_points_list = []
+        self.transformed_points_list = []
+        self.obstacle_dist_list = []
+        self.obstacle_angle_list = []
+
+        # Create virtual obstacle points
+        n_points = 100
         radius = 0.3
         for i in range (n_points):
             contour_point = PointStamped()
             contour_point.header.frame_id = 'map'
             contour_point.header.stamp = self.get_clock().now().to_msg()
-            contour_point.point.x = (radius + random.uniform(0.0, 0.2)) * np.cos(i/n_points * 2*np.pi) + 1.0
-            contour_point.point.y = (radius + random.uniform(0.0, 0.2)) * np.sin(i/n_points * 2*np.pi) - 1.0
+            contour_point.point.x = (radius + random.uniform(0.0, 0.2)) * np.cos(i/n_points * 2*np.pi) - 1.0
+            contour_point.point.y = (radius + random.uniform(0.0, 0.2)) * np.sin(i/n_points * 2*np.pi) + 1.0
             contour_point.point.z = 0.0
             self.obstacle_points_list.append(contour_point)
 
-            # try:
-            #    map_marker = self.create_marker(contour_point, 'map', 0)
-            #    self.marker_publisher.publish(map_marker)
-            # except:
-            #    pass
+    
+    def random_air_particles(self):
+        pass
 
 
     def transform_point(self):
-        self.create_dust_points()
+        self.create_oval_obstacle()
         try:
             # Lookup the transform from 'map' to 'base_link'
             transform = self.tf_buffer.lookup_transform('base_link', 'map', rclpy.time.Time())
@@ -99,10 +114,6 @@ class PointTransformer(Node):
                 self.obstacle_dist_list.append(dist_to_obstacle) 
                 self.obstacle_angle_list.append(angle_to_obstacle)
                 
-                for i in range(1, len(self.obstacle_dist_list)-1):
-                    if self.obstacle_dist_list[i] > self.obstacle_dist_list[i-1]*1.01 and self.obstacle_dist_list[i] > self.obstacle_dist_list[i+1]*1.01:
-                        self.obstacle_dist_list[i] = (self.obstacle_dist_list[i+1] + self.obstacle_dist_list[i-1])/2
-
                 # self.get_logger().info(f"Transformed point: {transformed_point.point.x}, {transformed_point.point.y}")
                 # self.get_logger().info(f"Transformed point distance: {dist_to_obstacle}")
                 # self.get_logger().info(f"Transformed point angle: {angle_to_obstacle}")
@@ -160,11 +171,23 @@ class PointTransformer(Node):
             if obstacle_index + self.lidar_list_offset > len(msg.ranges) - 1:
                 if modified_range[obstacle_index + self.lidar_list_offset - len(msg.ranges)] > self.obstacle_dist_list[ang_index]:  # See if virtual obstacle is closer than wall
                     modified_range[obstacle_index + self.lidar_list_offset - len(msg.ranges)] = self.obstacle_dist_list[ang_index]
+                    try:
+                        modified_range[obstacle_index + self.lidar_list_offset - len(msg.ranges) - 1] = self.obstacle_dist_list[ang_index]
+                        modified_range[obstacle_index + self.lidar_list_offset - len(msg.ranges) + 1] = self.obstacle_dist_list[ang_index]
+                    except:
+                        pass
+
                     modified_intensities[obstacle_index + self.lidar_list_offset - len(msg.ranges)] = 1.5  # Dust has lidar intensity between 1 and 2 
 
             else:
                 if modified_range[obstacle_index + self.lidar_list_offset] > self.obstacle_dist_list[ang_index]:  # See if virtual obstacle is closer than wall
                     modified_range[obstacle_index + self.lidar_list_offset] = self.obstacle_dist_list[ang_index]
+                    try:
+                        modified_range[obstacle_index + self.lidar_list_offset - 1] = self.obstacle_dist_list[ang_index]
+                        modified_range[obstacle_index + self.lidar_list_offset + 1] = self.obstacle_dist_list[ang_index]
+                    except:
+                        pass
+
                     modified_intensities[obstacle_index + self.lidar_list_offset] = 1.5  # Dust has lidar intensity between 1 and 2 
         return modified_range, modified_intensities
     
@@ -184,9 +207,9 @@ class PointTransformer(Node):
         modified_msg.intensities = msg.intensities  # Keep intensities unchanged
 
         # Change LiDAR ranges and intensities for the new modified_msg
+        # modified_msg.ranges, modified_msg.intensities = self.lidar_mod(msg, msg.ranges, modified_msg.intensities)  # If you want changes
+        modified_msg.ranges = msg.ranges  # If you don't want changes
 
-        modified_msg.ranges, modified_msg.intensities = self.lidar_mod(msg, msg.ranges, modified_msg.intensities)  # If you want changes
-        #modified_msg.ranges = msg.ranges  # If you don't want changes
         self.image_publisher.publish(modified_msg)
 
 
