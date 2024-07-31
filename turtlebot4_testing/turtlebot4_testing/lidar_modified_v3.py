@@ -30,12 +30,12 @@ class SimulatedDustEffect(Node):
         
         self.marker_publisher = self.create_publisher(Marker, 'visualization_marker', 10)
 
-        self.create_dust_zone()
+        self.create_dust_zone()  # Creates the obstacle points list in the map frame
 
 
     def create_dust_zone(self):
         # This function creates the 4 points of the rectangle simulated dust cloud.
-        
+
         # Dust zone parameters
         dust_zone_center_x = 1.0
         dust_zone_center_y = 1.0
@@ -43,6 +43,7 @@ class SimulatedDustEffect(Node):
         dust_zone_width = 1.0
         dust_zone_angle = 0.0
 
+        # Create the corners of the dust zone rectangle according to the parameters and adds points to self.obstacle_points_list
         contour_point_1 = PointStamped()
         contour_point_1.header.frame_id = 'map'
         contour_point_1.header.stamp = self.get_clock().now().to_msg()
@@ -76,15 +77,13 @@ class SimulatedDustEffect(Node):
         self.obstacle_points_list.append(contour_point_4)
 
 
-    
-
-
-    
     def transform_point(self):
-        self.transformed_points_list = []
-        self.obstacle_dist_list = []
-        self.obstacle_angle_list = []
+        # This function transforms the obstacle points from the map frame to the robot's frame
+        self.transformed_points_list = []  # Reinitialise the list
+        self.obstacle_dist_list = []  # Reinitialise the list
+        self.obstacle_angle_list = []  # Reinitialise the list
 
+        # The transform doesn't always work when data is inaccessible, so try/except is used
         try:
             # Lookup the transform from 'map' to 'base_link'
             transform = self.tf_buffer.lookup_transform('base_link', 'map', rclpy.time.Time())
@@ -93,8 +92,8 @@ class SimulatedDustEffect(Node):
             for map_point in self.obstacle_points_list:
                 transformed_point = do_transform_point(map_point, transform)
                 self.transformed_points_list.append(transformed_point)
-                dist_to_obstacle = np.sqrt(transformed_point.point.x**2 + transformed_point.point.y**2) # Calculate distance between the robot and the obstacle point
-                angle_to_obstacle = np.arctan2(transformed_point.point.y, transformed_point.point.x) + np.pi # Returns angle between 0 and 2*pi
+                dist_to_obstacle =  # Calculate distance between the robot and the obstacle point
+                angle_to_obstacle =  + np.pi # Returns angle between 0 and 2*pi
                 self.obstacle_dist_list.append(dist_to_obstacle) 
                 self.obstacle_angle_list.append(angle_to_obstacle)
                 
@@ -106,6 +105,7 @@ class SimulatedDustEffect(Node):
         except Exception as e:
             self.get_logger().error(f"Could not transform point: {str(e)}")
 
+        # Here we publish markers on the obstacle points in the robot's frame and in the map frame to test if everything works
         try:
             for id_num, map_point in enumerate(self.obstacle_points_list):
                 map_marker = self.create_marker(map_point, 'map', id_num)
@@ -118,11 +118,9 @@ class SimulatedDustEffect(Node):
             pass
 
 
-    
-    
-
     def lidar_mod(self, msg : LaserScan, modified_range, modified_intensities):
-        # Modification for obstacle points
+        # This function modifies the LiDAR measurements and intensities
+
         for ang_index, angles in enumerate(self.obstacle_angle_list):
             obstacle_index = int((len(msg.ranges)-1) * angles / (2*np.pi))
             # self.get_logger().info(f"obstacle_index: {obstacle_index}")
@@ -154,8 +152,60 @@ class SimulatedDustEffect(Node):
         return modified_range, modified_intensities
     
 
+    def calc_dist_to_segment(self, point, p1, p2):
+        A = point[0] - p1[0]
+        B = point[1] - p1[1]
+        C = p2[0] - p1[0]
+        D = p2[1] - p1[1]
+
+        dot = A*C + B*D
+        len_sq = C**2 + D**2
+        param = -1
+        if len_sq != 0:  # in case of 0 length line
+            param = dot/len_sq
+
+        if param < 0:
+            xx = p1[0]
+            yy = p1[1]
+
+        elif param > 1:
+            xx = p2[0]
+            yy = p2[1]
+
+        else:
+            xx = p1[0] + param * C
+            yy = p1[1] + param * D
+
+        dx = point[0] - xx
+        dy = point[1] - yy
+
+        return np.sqrt(dx**2 + dy**2)
+
+
+    def dist_to_obs(self, obstacle_points_list):
+        dist_to_zone_list = []
+        distance_1 = calc_dist_to_segment(robot, obstacle_points_list[0], obstacle_points_list[1])
+        dist_to_zone_list.append(distance_1)
+        distance_2 = calc_dist_to_segment(robot, obstacle_points_list[1], obstacle_points_list[2])
+        dist_to_zone_list.append(distance_2)
+        distance_3 = calc_dist_to_segment(robot, obstacle_points_list[2], obstacle_points_list[3])
+        dist_to_zone_list.append(distance_3)
+        distance_4 = calc_dist_to_segment(robot, obstacle_points_list[3], obstacle_points_list[0])
+        dist_to_zone_list.append(distance_4)
+        return dist_to_zone_list
+    
+
+    def angle_of_cloud(self):
+        obstacle_angle_list = []
+        for point in obstacle_points_list:
+            angle = np.arctan2(point[1][0]-robot[1][0], point[0][0]-robot[0][0])
+            obstacle_angle_list.append(angle * 180/np.pi)
+        return obstacle_angle_list
+    
+
     def lidar_callback(self, msg : LaserScan):
-        self.transform_point()
+        # This function is called when the robot gets LiDAR measurements
+        self.transform_point()  # The LiDAR 
 
         modified_msg = LaserScan()
         modified_msg.header = msg.header
@@ -169,13 +219,14 @@ class SimulatedDustEffect(Node):
         modified_msg.intensities = msg.intensities  # Keep intensities unchanged
 
         # Change LiDAR ranges and intensities for the new modified_msg
-        # modified_msg.ranges, modified_msg.intensities = self.lidar_mod(msg, msg.ranges, modified_msg.intensities)  # If you want changes
-        modified_msg.ranges = msg.ranges  # If you don't want changes
+        modified_msg.ranges, modified_msg.intensities = self.lidar_mod(msg, msg.ranges, modified_msg.intensities)  # If you want changes
+        # modified_msg.ranges = msg.ranges  # If you don't want changes
 
         self.image_publisher.publish(modified_msg)
 
     
     def create_marker(self, point_stamped, frame_id, marker_id):
+        # This function creates markers to be used to visualize the obstacle points in rviz2
         marker = Marker()
         marker.header.frame_id = frame_id
         marker.header.stamp = self.get_clock().now().to_msg()
@@ -199,14 +250,6 @@ class SimulatedDustEffect(Node):
         marker.color.b = 1.0 if frame_id == 'base_link' else 0.0
         return marker
     
-
-
-def dist_point_to_line(point, vector):
-    pass
-
-
-def angle_of_cloud():
-    pass
 
 
 def main(args=None):
