@@ -30,59 +30,61 @@ class SimulatedDustEffect(Node):
         
         self.marker_publisher = self.create_publisher(Marker, 'visualization_marker', 10)
 
+        self.create_dust_zone()
 
 
     def create_dust_zone(self):
-        # This dust cloud is a noisy oval to give illusion of moving dust
-        # Reset the obstacle points lists in both frames
-        self.obstacle_points_list = []
-        self.transformed_points_list = []
-        self.obstacle_dist_list = []
-        self.obstacle_angle_list = []
-
+        # This function creates the 4 points of the rectangle simulated dust cloud.
+        
         # Dust zone parameters
-        dust_zone_pos_x = 1.0
-        dust_zone_pos_y = 1.0
-        dust_zone_width = 1.0
+        dust_zone_center_x = 1.0
+        dust_zone_center_y = 1.0
         dust_zone_length = 2.0
+        dust_zone_width = 1.0
         dust_zone_angle = 0.0
 
         contour_point_1 = PointStamped()
         contour_point_1.header.frame_id = 'map'
         contour_point_1.header.stamp = self.get_clock().now().to_msg()
-        contour_point_1.point.x = 
-        contour_point_1.point.y = 
+        contour_point_1.point.x = dust_zone_center_x + 0.5*(dust_zone_length*np.cos(dust_zone_angle) + dust_zone_width*np.sin(dust_zone_angle))
+        contour_point_1.point.y = dust_zone_center_y + 0.5*(dust_zone_width*np.cos(dust_zone_angle) - dust_zone_length*np.sin(dust_zone_angle))
         contour_point_1.point.z = 0.0
         self.obstacle_points_list.append(contour_point_1)
 
         contour_point_2 = PointStamped()
         contour_point_2.header.frame_id = 'map'
         contour_point_2.header.stamp = self.get_clock().now().to_msg()
-        contour_point_2.point.x = 
-        contour_point_2.point.y = 
+        contour_point_2.point.x = dust_zone_center_x + 0.5*(dust_zone_length*np.cos(dust_zone_angle) - dust_zone_width*np.sin(dust_zone_angle))
+        contour_point_2.point.y = dust_zone_center_y + 0.5*(-dust_zone_width*np.cos(dust_zone_angle) - dust_zone_length*np.sin(dust_zone_angle))
         contour_point_2.point.z = 0.0
         self.obstacle_points_list.append(contour_point_2)
 
         contour_point_3 = PointStamped()
         contour_point_3.header.frame_id = 'map'
         contour_point_3.header.stamp = self.get_clock().now().to_msg()
-        contour_point_3.point.x = 
-        contour_point_3.point.y = 
+        contour_point_3.point.x = dust_zone_center_x + 0.5*(-dust_zone_length*np.cos(dust_zone_angle) - dust_zone_width*np.sin(dust_zone_angle))
+        contour_point_3.point.y = dust_zone_center_y + 0.5*(-dust_zone_width*np.cos(dust_zone_angle) + dust_zone_length*np.sin(dust_zone_angle))
         contour_point_3.point.z = 0.0
         self.obstacle_points_list.append(contour_point_3)
 
         contour_point_4 = PointStamped()
         contour_point_4.header.frame_id = 'map'
         contour_point_4.header.stamp = self.get_clock().now().to_msg()
-        contour_point_4.point.x = 
-        contour_point_4.point.y = 
+        contour_point_4.point.x = dust_zone_center_x + 0.5*(-dust_zone_length*np.cos(dust_zone_angle) + dust_zone_width*np.sin(dust_zone_angle))
+        contour_point_4.point.y = dust_zone_center_y + 0.5*(dust_zone_width*np.cos(dust_zone_angle) + dust_zone_length*np.sin(dust_zone_angle))
         contour_point_4.point.z = 0.0
         self.obstacle_points_list.append(contour_point_4)
 
 
     
+
+
+    
     def transform_point(self):
-        self.create_oval_obstacle()
+        self.transformed_points_list = []
+        self.obstacle_dist_list = []
+        self.obstacle_angle_list = []
+
         try:
             # Lookup the transform from 'map' to 'base_link'
             transform = self.tf_buffer.lookup_transform('base_link', 'map', rclpy.time.Time())
@@ -196,6 +198,15 @@ class SimulatedDustEffect(Node):
         marker.color.g = 1.0 if frame_id == 'map' else 0.0
         marker.color.b = 1.0 if frame_id == 'base_link' else 0.0
         return marker
+    
+
+
+def dist_point_to_line(point, vector):
+    pass
+
+
+def angle_of_cloud():
+    pass
 
 
 def main(args=None):
