@@ -137,7 +137,6 @@ class SimulatedDustEffect(Node):
                     self.apply_lidar_noise(modified_msg, lidar_index + self.lidar_list_offset - len(modified_msg.ranges))
 
 
-
     def apply_lidar_noise(self, modified_msg : LaserScan, index_value):
         # This function applies the dust noise to the LiDAR measurement
 
@@ -147,7 +146,7 @@ class SimulatedDustEffect(Node):
                 modified_msg.ranges[index_value] = np.inf
 
         else:
-            if random.random() < 0.5:
+            if random.random() < 0.7:
                 modified_msg.ranges[index_value] = np.inf
             else:
                 max_dust_distance = np.min([modified_msg.ranges[index_value], self.calc_max_dist_to_zone()])
@@ -233,8 +232,9 @@ class SimulatedDustEffect(Node):
             self.calc_dist_to_zone()
             # Calculate the angle range of the dust zone to the robot
             self.calc_angle_to_zone()
-            self.get_logger().info(f"Distance to dust zone: {self.dist_to_zone}")
-            self.get_logger().info(f"Angle to dust zone: {self.angle_to_zone}")
+            
+            #self.get_logger().info(f"Distance to dust zone: {self.dist_to_zone}")
+            #self.get_logger().info(f"Angle to dust zone: {self.angle_to_zone}")
         except Exception as e:
             self.get_logger().error(f"Could not transform point: {str(e)}")
 
