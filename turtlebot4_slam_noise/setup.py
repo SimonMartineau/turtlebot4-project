@@ -21,7 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'visual_noise = turtlebot4_slam_noise.visual_noise:main',
-            'lidar_mod = turtlebot4_slam_noise.lidar_dust_noise:main'
+            'dust_noise = turtlebot4_slam_noise.lidar_dust_noise:main'
         ],
     },
 )

@@ -1,4 +1,13 @@
 # Written By Simon Martineau
+# ros2 run turtlebot4_slam_noise dust_noise --ros-args -p dust_transparency:=0.9
+
+"""
+This code generates a simulated dust cloud on the map which the LiDAR will detect and relay to NAV2
+"""
+
+# Parameters :
+#   - check_status: 1 or 0, prints confirmation the node is running
+#   - dust_transparency: float between 0 and 1 that determins the level of dust
 
 import rclpy
 from rclpy.node import Node
@@ -24,12 +33,23 @@ class SimulatedDustEffect(Node):
         self.dist_to_zone = 10
         self.angle_to_zone = []
         
-        self.image_subscriber = self.create_subscription(LaserScan, "/scan", self.lidar_callback ,10)
-        self.image_publisher = self.create_publisher(LaserScan, "/scan_modified", 10)
-        self.lidar_list_offset = 809
+        self.image_subscriber = self.create_subscription(LaserScan, "/scan", self.lidar_callback ,10)  # Input LiDAR scan topic
+        self.image_publisher = self.create_publisher(LaserScan, "/scan_modified", 10)    # Output LiDAR scan topic
+        self.lidar_list_offset = 809  # Offset to match LiDAR values lists with robot's angles
         self.inside_dust_zone = False
         
         self.marker_publisher = self.create_publisher(Marker, 'dust_zone_markers', 10)
+
+        # Declaration of variables
+        self.declare_parameter('check_status', 0)
+        self.declare_parameter('dust_transparency', 0.9)  # By default, dust_passthrough level is 0.9. 1 means no noise.
+
+        # Assignment of variable values
+        self.check_status_val = self.get_parameter('check_status').get_parameter_value().integer_value
+        self.dust_transparency_val = self.get_parameter('dust_transparency').get_parameter_value().double_value
+
+        if self.check_status_val == 1:
+            self.create_timer(3.0, self.timer_callback)  # timer_callback function will be called every 3s
 
         self.create_dust_zone()  # Creates the obstacle points list in the map frame
 
@@ -146,11 +166,12 @@ class SimulatedDustEffect(Node):
                 modified_msg.ranges[index_value] = np.inf
 
         else:
-            if random.random() < 0.7:
-                modified_msg.ranges[index_value] = np.inf
+            # If the robot is further away than 55cm, the LiDAR will detect dust with parameter chance
+            if random.random() < self.dust_transparency_val:
+                modified_msg.ranges[index_value] = np.inf  # Dust not detected
             else:
                 max_dust_distance = np.min([modified_msg.ranges[index_value], self.calc_max_dist_to_zone()])
-                modified_msg.ranges[index_value] = random.uniform(self.dist_to_zone, max_dust_distance)
+                modified_msg.ranges[index_value] = random.uniform(self.dist_to_zone, max_dust_distance)  # Dust detected
 
 
     def calc_max_dist_to_zone(self):
@@ -208,7 +229,6 @@ class SimulatedDustEffect(Node):
 
         dx = robot_coordinate[0] - xx
         dy = robot_coordinate[1] - yy
-
         return np.sqrt(dx**2 + dy**2)
 
 
@@ -247,14 +267,15 @@ class SimulatedDustEffect(Node):
         modified_msg.scan_time = msg.scan_time
         modified_msg.range_min = msg.range_min
         modified_msg.range_max = msg.range_max
-        modified_msg.intensities = msg.intensities  # For if you don't want changes to intensity
-        modified_msg.ranges = msg.ranges  # For if you don't want changes to LiDAR distances
+        modified_msg.intensities = msg.intensities
+        modified_msg.ranges = msg.ranges
 
-        # Change LiDAR ranges and intensities for the new modified_msg
-        try:
-            self.lidar_modifications(modified_msg)   
-        except Exception as e:
-            self.get_logger().error(f"Could not transform point: {str(e)}")
+        if self.dust_transparency_val != 1.0:
+            # Change LiDAR ranges and intensities for the new modified_msg
+            try:
+                self.lidar_modifications(modified_msg)   
+            except Exception as e:
+                self.get_logger().error(f"Could not transform point: {str(e)}")
 
         self.image_publisher.publish(modified_msg)
 
@@ -284,6 +305,9 @@ class SimulatedDustEffect(Node):
         marker.color.b = 1.0 if frame_id == 'base_link' else 0.0
         return marker
     
+    def timer_callback(self):
+        self.get_logger().info("lidar_dust_noise: Active")
+    
 
 
 def main(args=None):
@@ -295,56 +319,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

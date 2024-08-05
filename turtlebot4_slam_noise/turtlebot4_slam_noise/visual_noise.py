@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Written by Simon Martineau
-# ros2 run turtlebot4_testing visual_noise --ros-args -p check_status:=1 -p add_noise:=50 -p change_lighting:=0.5 -p add_blur:=10
+# ros2 run turtlebot4_slam_noise visual_noise --ros-args -p check_status:=1 -p add_noise:=50 -p change_lighting:=0.5 -p add_blur:=10
 
 # Parameters :
 #   - check_status: 1 or 0, prints confirmation the node is running
@@ -164,6 +164,7 @@ class VisualNoiseNode(Node):
 
 
 def main(args=None):
+
     rclpy.init(args=args)
     node = VisualNoiseNode()
     rclpy.spin(node)
