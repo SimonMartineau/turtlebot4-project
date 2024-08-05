@@ -1,4 +1,5 @@
 from setuptools import find_packages, setup
+import os
 
 package_name = 'turtlebot4_slam_noise'
 

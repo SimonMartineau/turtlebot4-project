@@ -5,10 +5,6 @@
 This code generates a simulated dust cloud on the map which the LiDAR will detect and relay to NAV2
 """
 
-# Parameters :
-#   - check_status: 1 or 0, prints confirmation the node is running
-#   - dust_transparency: float between 0 and 1 that determins the level of dust
-
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PointStamped
@@ -24,7 +20,7 @@ import random
 
 class SimulatedDustEffect(Node):
     def __init__(self):
-        super().__init__('simulated_dust_effect')
+        super().__init__('dust_noise_node')
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -41,14 +37,33 @@ class SimulatedDustEffect(Node):
         self.marker_publisher = self.create_publisher(Marker, 'dust_zone_markers', 10)
 
         # Declaration of variables
-        self.declare_parameter('check_status', 0)
-        self.declare_parameter('dust_transparency', 0.9)  # By default, dust_passthrough level is 0.9. 1 means no noise.
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('check_status', rclpy.Parameter.Type.BOOL),
+                ('dust_transparency', rclpy.Parameter.Type.DOUBLE),
+                ('dust_zone_center_x', rclpy.Parameter.Type.DOUBLE),
+                ('dust_zone_center_y', rclpy.Parameter.Type.DOUBLE),
+                ('dust_zone_length', rclpy.Parameter.Type.DOUBLE),
+                ('dust_zone_width', rclpy.Parameter.Type.DOUBLE),
+                ('dust_zone_angle', rclpy.Parameter.Type.DOUBLE),
+                ('dust_absorption_dist_limit', rclpy.Parameter.Type.DOUBLE),
+                ('dust_absorption_limit', rclpy.Parameter.Type.DOUBLE)
+            ]
+        )
 
         # Assignment of variable values
         self.check_status_val = self.get_parameter('check_status').get_parameter_value().integer_value
         self.dust_transparency_val = self.get_parameter('dust_transparency').get_parameter_value().double_value
+        self.dust_zone_center_x_val = self.get_parameter('dust_zone_center_x').get_parameter_value().double_value
+        self.dust_zone_center_y_val = self.get_parameter('dust_zone_center_y').get_parameter_value().double_value
+        self.dust_zone_length_val = self.get_parameter('dust_zone_length').get_parameter_value().double_value
+        self.dust_zone_width_val = self.get_parameter('dust_zone_width').get_parameter_value().double_value
+        self.dust_zone_angle_val = self.get_parameter('dust_zone_angle').get_parameter_value().double_value
+        self.dust_absorption_dist_val = self.get_parameter('dust_absorption_dist_limit').get_parameter_value().double_value
+        self.dust_absorption_val = self.get_parameter('dust_absorption_limit').get_parameter_value().double_value
 
-        if self.check_status_val == 1:
+        if self.check_status_val == 1.0:
             self.create_timer(3.0, self.timer_callback)  # timer_callback function will be called every 3s
 
         self.create_dust_zone()  # Creates the obstacle points list in the map frame
@@ -56,44 +71,36 @@ class SimulatedDustEffect(Node):
 
     def create_dust_zone(self):
         # This function creates the 4 points of the rectangle simulated dust cloud.
-
-        # Dust zone parameters
-        dust_zone_center_x = 0.0
-        dust_zone_center_y = 1.0
-        dust_zone_length = 1.0
-        dust_zone_width = 0.6
-        dust_zone_angle = 0.0
-
         # Create the corners of the dust zone rectangle according to the parameters and adds points to self.zone_points_list
         zone_point_1 = PointStamped()
         zone_point_1.header.frame_id = 'map'
         zone_point_1.header.stamp = self.get_clock().now().to_msg()
-        zone_point_1.point.x = dust_zone_center_x + 0.5*(dust_zone_length*np.cos(dust_zone_angle) + dust_zone_width*np.sin(dust_zone_angle))
-        zone_point_1.point.y = dust_zone_center_y + 0.5*(dust_zone_width*np.cos(dust_zone_angle) - dust_zone_length*np.sin(dust_zone_angle))
+        zone_point_1.point.x = self.dust_zone_center_x_val + 0.5*(self.dust_zone_length_val*np.cos(self.dust_zone_angle_val) + self.dust_zone_width_val*np.sin(self.dust_zone_angle_val))
+        zone_point_1.point.y = self.dust_zone_center_y_val + 0.5*(self.dust_zone_width_val*np.cos(self.dust_zone_angle_val) - self.dust_zone_length_val*np.sin(self.dust_zone_angle_val))
         zone_point_1.point.z = 0.0
         self.zone_points_list.append(zone_point_1)
 
         zone_point_2 = PointStamped()
         zone_point_2.header.frame_id = 'map'
         zone_point_2.header.stamp = self.get_clock().now().to_msg()
-        zone_point_2.point.x = dust_zone_center_x + 0.5*(dust_zone_length*np.cos(dust_zone_angle) - dust_zone_width*np.sin(dust_zone_angle))
-        zone_point_2.point.y = dust_zone_center_y + 0.5*(-dust_zone_width*np.cos(dust_zone_angle) - dust_zone_length*np.sin(dust_zone_angle))
+        zone_point_2.point.x = self.dust_zone_center_x_val + 0.5*(self.dust_zone_length_val*np.cos(self.dust_zone_angle_val) - self.dust_zone_width_val*np.sin(self.dust_zone_angle_val))
+        zone_point_2.point.y = self.dust_zone_center_y_val + 0.5*(-self.dust_zone_width_val*np.cos(self.dust_zone_angle_val) - self.dust_zone_length_val*np.sin(self.dust_zone_angle_val))
         zone_point_2.point.z = 0.0
         self.zone_points_list.append(zone_point_2)
 
         zone_point_3 = PointStamped()
         zone_point_3.header.frame_id = 'map'
         zone_point_3.header.stamp = self.get_clock().now().to_msg()
-        zone_point_3.point.x = dust_zone_center_x + 0.5*(-dust_zone_length*np.cos(dust_zone_angle) - dust_zone_width*np.sin(dust_zone_angle))
-        zone_point_3.point.y = dust_zone_center_y + 0.5*(-dust_zone_width*np.cos(dust_zone_angle) + dust_zone_length*np.sin(dust_zone_angle))
+        zone_point_3.point.x = self.dust_zone_center_x_val + 0.5*(-self.dust_zone_length_val*np.cos(self.dust_zone_angle_val) - self.dust_zone_width_val*np.sin(self.dust_zone_angle_val))
+        zone_point_3.point.y = self.dust_zone_center_y_val + 0.5*(-self.dust_zone_width_val*np.cos(self.dust_zone_angle_val) + self.dust_zone_length_val*np.sin(self.dust_zone_angle_val))
         zone_point_3.point.z = 0.0
         self.zone_points_list.append(zone_point_3)
 
         zone_point_4 = PointStamped()
         zone_point_4.header.frame_id = 'map'
         zone_point_4.header.stamp = self.get_clock().now().to_msg()
-        zone_point_4.point.x = dust_zone_center_x + 0.5*(-dust_zone_length*np.cos(dust_zone_angle) + dust_zone_width*np.sin(dust_zone_angle))
-        zone_point_4.point.y = dust_zone_center_y + 0.5*(dust_zone_width*np.cos(dust_zone_angle) + dust_zone_length*np.sin(dust_zone_angle))
+        zone_point_4.point.x = self.dust_zone_center_x_val + 0.5*(-self.dust_zone_length_val*np.cos(self.dust_zone_angle_val) + self.dust_zone_width_val*np.sin(self.dust_zone_angle_val))
+        zone_point_4.point.y = self.dust_zone_center_y_val + 0.5*(self.dust_zone_width_val*np.cos(self.dust_zone_angle_val) + self.dust_zone_length_val*np.sin(self.dust_zone_angle_val))
         zone_point_4.point.z = 0.0
         self.zone_points_list.append(zone_point_4)
 
@@ -161,8 +168,8 @@ class SimulatedDustEffect(Node):
         # This function applies the dust noise to the LiDAR measurement
 
         # If the dust within 55cm of the robot, it absorbs the LiDAR measurements with 90% chance
-        if self.dist_to_zone < 0.55:
-            if random.random() < 0.9:
+        if self.dist_to_zone < self.dust_absorption_dist_val:
+            if random.random() < self.dust_absorption_val:
                 modified_msg.ranges[index_value] = np.inf
 
         else:

@@ -3,6 +3,10 @@
 # Written by Simon Martineau
 # ros2 run turtlebot4_slam_noise visual_noise --ros-args -p check_status:=1 -p add_noise:=50 -p change_lighting:=0.5 -p add_blur:=10
 
+"""
+This code generates various visual noises to disrupt the camera feed and challenge the subsequent SLAM algorithm.
+"""
+
 # Parameters :
 #   - check_status: 1 or 0, prints confirmation the node is running
 #   - add_noise: float that gives value of noise
