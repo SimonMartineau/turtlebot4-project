@@ -7,15 +7,6 @@
 This code generates various visual noises to disrupt the camera feed and challenge the subsequent SLAM algorithm.
 """
 
-# Parameters :
-#   - check_status: 1 or 0, prints confirmation the node is running
-#   - add_noise: float that gives value of noise
-#   - change_lighting: float between 0.0 and 1.0 that gives illumination ratio
-#   - add_blue: odd number that gives level of blur
-#   - add_water_drops: gives number of drops on screen
-#   - add_fog: 1 or 0, adds fog effect
-#   - add_dust: 1 or 0, adds dust effect
-
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -24,36 +15,39 @@ import numpy as np
 import time
 import random
 
+
+
 class VisualNoiseNode(Node):
     def __init__(self):
         super().__init__("visual_noise_node")
-        self.image_subscriber = self.create_subscription(Image, "/image_raw", self.image_callback ,10)
+        self.image_subscriber = self.create_subscription(Image, "camera/camera/color/image_raw", self.image_callback ,10)
         self.image_publisher = self.create_publisher(Image, "/image_modified", 10)
         
         # Declaration of variables
-        self.declare_parameter('check_status', 0)
-        self.declare_parameter('add_noise', 0)  # By default, no added noise
-        self.declare_parameter('change_lighting', 1.0)  # By default, no change in lighting
-        self.declare_parameter('add_blur', 1)  # By default, no added blur
-        self.declare_parameter('add_water_drops', 0)  # By default, no added water drops
-        self.declare_parameter('add_fog', 0)  # By default, no added fog
-        self.declare_parameter('add_dust', 0)  # By default, no added dust
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('check_status', rclpy.Parameter.Type.BOOL),
+                ('add_noise', rclpy.Parameter.Type.INTEGER),
+                ('change_lighting', rclpy.Parameter.Type.DOUBLE),
+                ('add_blur', rclpy.Parameter.Type.INTEGER),
+                ('add_water_drops', rclpy.Parameter.Type.INTEGER),
+            ]
+        )
 
         # Assignment of variable values
-        self.check_status_val = self.get_parameter('check_status').get_parameter_value().integer_value
+        self.check_status_val = self.get_parameter('check_status').get_parameter_value().bool_value
         self.add_noise_val = self.get_parameter('add_noise').get_parameter_value().integer_value
         self.change_lighting_val = self.get_parameter('change_lighting').get_parameter_value().double_value
         self.add_blur_val = self.get_parameter('add_blur').get_parameter_value().integer_value
         self.add_water_drops_val = self.get_parameter('add_water_drops').get_parameter_value().integer_value
-        self.add_fog_val = self.get_parameter('add_fog').get_parameter_value().integer_value
-        self.add_dust_val = self.get_parameter('add_dust').get_parameter_value().integer_value
 
         # Declarations for FPS measurement
         self.fps = 0
         self.last_time = time.time()
 
-        if self.check_status_val == 1:
-            self.create_timer(1.0, self.timer_callback)  # timer_callback function will be called every 1s
+        if self.check_status_val == True:
+            self.create_timer(3.0, self.timer_callback)  # timer_callback function will be called every 3s
 
 
     def add_noise(self, cv_image):
@@ -101,15 +95,7 @@ class VisualNoiseNode(Node):
         # Blend the overlay with the original image
         water_dropped_image = cv2.addWeighted(overlay, 0.4, cv_image, 0.6, 0)
         return water_dropped_image
-
-
-    def add_fog(self, cv_image):
-        pass
-
-
-    def add_dust(self, cv_image):
-        pass
-
+    
 
     def image_callback(self, msg: Image):
         # Measurement of fps in modified image
@@ -138,14 +124,6 @@ class VisualNoiseNode(Node):
         # Add water drops
         if self.add_water_drops_val != 0:
             cv_image = self.add_water_drops(cv_image)
-
-        # Add fog
-        if self.add_fog_val != 0:
-            cv_image = self.add_fog(cv_image)
-
-        # Add dust
-        if self.add_dust_val != 0:
-            cv_image = self.add_dust(cv_image)
 
         # Convert OpenCV image back to ROS image format
         modified_image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)

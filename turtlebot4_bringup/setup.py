@@ -18,13 +18,13 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Simon Martineau',
-    maintainer_email='simon.martineau@ensta-bretagne.org',
-    description='ROS2 custom launch scripts for starting turtlebot4 programs',
+    maintainer_email='martineausimon20@gmail.com',
+    description='ROS2 custom launch scripts for starting custom turtlebot4 programs',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            
+
         ],
     },
 )
