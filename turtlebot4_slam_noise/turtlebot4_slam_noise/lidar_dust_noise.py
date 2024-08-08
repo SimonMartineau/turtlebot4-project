@@ -34,7 +34,7 @@ class SimulatedDustEffect(Node):
         self.lidar_list_offset = 809  # Offset to match LiDAR values lists with robot's angles
         self.inside_dust_zone = False
         
-        self.marker_publisher = self.create_publisher(Marker, 'dust_zone_markers', 10)
+        self.marker_publisher = self.create_publisher(Marker, '/dust_zone_markers', 10)
 
         # Declaration of variables
         self.declare_parameters(
