@@ -20,7 +20,7 @@ import random
 class VisualNoiseNode(Node):
     def __init__(self):
         super().__init__("visual_noise_node")
-        self.image_subscriber = self.create_subscription(Image, "camera/camera/color/image_raw", self.image_callback ,10)
+        self.image_subscriber = self.create_subscription(Image, "/camera/pi3/color/image_raw", self.image_callback ,10)
         self.image_publisher = self.create_publisher(Image, "/image_modified", 10)
         
         # Declaration of variables
