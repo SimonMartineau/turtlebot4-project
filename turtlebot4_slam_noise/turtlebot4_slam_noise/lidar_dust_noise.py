@@ -11,7 +11,7 @@ from geometry_msgs.msg import PointStamped
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from tf2_geometry_msgs.tf2_geometry_msgs import do_transform_point
-from visualization_msgs.msg import Marker, MarkerArray
+from visualization_msgs.msg import Marker
 from sensor_msgs.msg import LaserScan
 import numpy as np
 import random

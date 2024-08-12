@@ -5,6 +5,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch.substitutions import LaunchConfiguration
 from launch.conditions import IfCondition, UnlessCondition
 
+
 def generate_launch_description():
     # Declare a launch argument to choose between modified and default launch files
     use_mod_files = LaunchConfiguration('use_mod_files', default='false')
@@ -17,15 +18,24 @@ def generate_launch_description():
             description='Set to "true" to use modified launch files (view_robot_mod.launch.py, slam_mod.launch.py, all_noise.launch.py)'
         ),
 
-        # Include view_robot_mod or view_robot based on the argument
+        # Include view_robot_mod if use_mod_files is true, else include view_robot
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 get_package_share_directory('turtlebot4_viz'),
-                '/launch/view_robot_mod.launch.py' if use_mod_files == 'true' else '/launch/view_robot.launch.py'
+                '/launch/view_robot_mod.launch.py'
             ]),
+            condition=IfCondition(use_mod_files)
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                get_package_share_directory('turtlebot4_viz'),
+                '/launch/view_robot.launch.py'
+            ]),
+            condition=UnlessCondition(use_mod_files)
         ),
 
-        # Conditionally include all_noise based on the argument
+        
+        # Conditionally include all_noise based on the argument (only if use_mod_files is true)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 get_package_share_directory('turtlebot4_bringup'), 
@@ -33,13 +43,22 @@ def generate_launch_description():
             ]),
             condition=IfCondition(use_mod_files)
         ),
+        
 
-        # Conditionally include slam_mod or slam based on the argument
+        # Include slam_mod if use_mod_files is true, else include slam
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 get_package_share_directory('turtlebot4_navigation'),
-                '/launch/slam_mod.launch.py' if use_mod_files == 'true' else '/launch/slam.launch.py'
+                '/launch/slam_mod.launch.py'
             ]),
+            condition=IfCondition(use_mod_files)
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                get_package_share_directory('turtlebot4_navigation'),
+                '/launch/slam.launch.py'
+            ]),
+            condition=UnlessCondition(use_mod_files)
         ),
 
         # Always include rqt_image_view
