@@ -23,6 +23,8 @@ class SimulatedDustEffect(Node):
         super().__init__('dust_noise_node')
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.tf_buffer2 = Buffer()
+        self.tf_listener2 = TransformListener(self.tf_buffer2, self)
 
         self.zone_points_list = [] # Initialise obstacle points list in the map frame
         self.transformed_zone_points_list = [] # Initialise obstacle points list in the base_link frame
@@ -167,19 +169,57 @@ class SimulatedDustEffect(Node):
     def apply_lidar_noise(self, modified_msg : LaserScan, index_value):
         # This function applies the dust noise to the LiDAR measurement
 
-        if modified_msg.ranges[index_value] > 100:
-            # If the dust within 55cm of the robot, it absorbs the LiDAR measurements with 90% chance
-            if self.dist_to_zone < self.dust_absorption_dist_val:
-                if random.random() < self.dust_absorption_val:
-                    modified_msg.ranges[index_value] = np.inf
+        # If the dust within 55cm of the robot, it absorbs the LiDAR measurements with 90% chance
+        if self.dist_to_zone < self.dust_absorption_dist_val:
+            if random.random() < self.dust_absorption_val:
+                modified_msg.ranges[index_value] = np.inf
 
+        else:
+            # If the robot is further away than 55cm, the LiDAR will detect dust with parameter chance
+            if random.random() < self.dust_transparency_val:
+                modified_msg.ranges[index_value] = np.inf  # Dust not detected
             else:
-                # If the robot is further away than 55cm, the LiDAR will detect dust with parameter chance
-                if random.random() < self.dust_transparency_val:
-                    modified_msg.ranges[index_value] = np.inf  # Dust not detected
-                else:
-                    max_dust_distance = np.min([modified_msg.ranges[index_value], self.calc_max_dist_to_zone()])
-                    modified_msg.ranges[index_value] = random.uniform(self.dist_to_zone, max_dust_distance)  # Dust detected
+                modified_msg.ranges[index_value] = self.distance_in_zone(modified_msg, index_value)  # Dust detected
+
+
+    def distance_in_zone(self, modified_msg : LaserScan, index_value):
+        # This function determines the correct distance to give the modified scan so the distance is in the dust zone
+        angle = index_value * 2*np.pi/(len(modified_msg.ranges)-1)
+
+        sim_point = PointStamped()
+        sim_point.header.frame_id = 'base_link'
+        sim_point.header.stamp = self.get_clock().now().to_msg()
+        sim_point.point.x = 0.0
+        sim_point.point.y = 0.0
+        sim_point.point.z = 0.0
+
+        self.max_zone_distance = self.calc_max_dist_to_zone()
+        
+        for _ in range(5):
+            random_distance = random.uniform(self.dist_to_zone, self.max_zone_distance)
+            sim_point.point.x = random_distance * np.cos(angle)
+            sim_point.point.y = random_distance * np.sin(angle)
+
+            # Lookup the transform from 'map' to 'base_link'
+            try:
+                transform2 = self.tf_buffer2.lookup_transform('map', 'base_link', rclpy.time.Time())
+                translation = transform2.transform.translation
+                rotation = transform2.transform.rotation
+                #self.get_logger().info(f"Translation: x={translation.x}, y={translation.y}, z={translation.z}")
+                #self.get_logger().info(f"Rotation: x={rotation.x}, y={rotation.y}, z={rotation.z}, w={rotation.w}")
+            except Exception as e:
+                self.get_logger().error(f"Transform lookup failed: {str(e)}")
+
+
+            # Convert point to map frame
+            try:
+                transformed_point = do_transform_point(sim_point, transform2)
+                #self.get_logger().info(f"transformed_point: {transformed_point}")
+                if self.point_in_zone(transformed_point) == True : #and modified_msg[index_value] < random_distance:
+                    self.get_logger().info(f"Distance to dust zone: {random_distance}")
+                    return random_distance
+            except Exception as e:
+                self.get_logger().error(f"Transform lookup failed: {str(e)}")
 
 
     def calc_max_dist_to_zone(self):
@@ -249,6 +289,11 @@ class SimulatedDustEffect(Node):
             obstacle_angle_list.append(angle)  # Returns the angle in degrees
         
         self.angle_to_zone = [np.min(obstacle_angle_list), np.max(obstacle_angle_list)]
+
+
+    def point_in_zone(self, sim_point : PointStamped):
+        if self.zone_points_list[2].point.x < sim_point.point.x and sim_point.point.x < self.zone_points_list[1].point.x and self.zone_points_list[1].point.y < sim_point.point.y and sim_point.point.y < self.zone_points_list[0].point.y:
+            return True
     
 
     def lidar_callback(self, msg : LaserScan):
@@ -277,6 +322,8 @@ class SimulatedDustEffect(Node):
         modified_msg.range_max = msg.range_max
         modified_msg.intensities = msg.intensities
         modified_msg.ranges = msg.ranges
+
+        
 
         if self.dust_transparency_val != 1.0:
             # Change LiDAR ranges and intensities for the new modified_msg

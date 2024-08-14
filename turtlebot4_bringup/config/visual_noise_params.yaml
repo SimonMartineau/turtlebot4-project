@@ -3,5 +3,5 @@ visual_noise_node:
     check_status: False  # 1 or 0, prints confirmation the node is running
     add_noise: 0  # float that gives value of noise
     change_lighting: 1.0  # float between 0.0 and 1.0 that gives illumination ratio
-    add_blur: 11  # odd number that gives level of blur
+    add_blur: 5  # odd number that gives level of blur
     add_water_drops: 0  # gives number of drops on screen

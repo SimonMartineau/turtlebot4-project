@@ -2,11 +2,11 @@ dust_noise_node:
   ros__parameters:
     check_status: False  # Prints confirmation the node is running
     dust_transparency: 0.5  # Putting 1.0 will eliminate dust noise
-    dust_zone_center_x: 2.0  # X value of the center of the dust zone
-    dust_zone_center_y: 3.0  # Y value of the center of the dust zone
-    dust_zone_length: 5.0  # Length value of the center of the dust zone
-    dust_zone_width: 1.0  # Width of the center of the dust zone
-    dust_zone_angle: 0.0  # Angle value of the center of the dust zone
+    dust_zone_center_x: 0.0  # X value of the center of the dust zone
+    dust_zone_center_y: 1.0  # Y value of the center of the dust zone
+    dust_zone_length: 2.0  # Length value of the center of the dust zone
+    dust_zone_width: 0.5  # Width of the center of the dust zone
+    dust_zone_angle: 0.0  # Angle value of the center of the dust zone (in rad)
     dust_absorption_dist_limit: 0.55  # Acc. to exp, if the robot is 55cm from the dust cloud, the particles absorbe the LiDAR rays
     dust_absorption_limit: 0.9  # 90% of the dust gets absorbed if the robot is within this distance of the dust cloud
 
