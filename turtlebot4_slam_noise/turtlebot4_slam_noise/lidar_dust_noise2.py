@@ -184,7 +184,7 @@ class SimulatedDustEffect(Node):
 
     def distance_in_zone(self, modified_msg : LaserScan, index_value):
         # This function determines the correct distance to give the modified scan so the distance is in the dust zone
-        angle = index_value * 2*np.pi/(len(modified_msg.ranges)-1)
+        angle = (index_value + self.lidar_list_offset) * 2*np.pi/(len(modified_msg.ranges)-1)
 
         sim_point = PointStamped()
         sim_point.header.frame_id = 'base_link'
@@ -199,27 +199,30 @@ class SimulatedDustEffect(Node):
             random_distance = random.uniform(self.dist_to_zone, self.max_zone_distance)
             sim_point.point.x = random_distance * np.cos(angle)
             sim_point.point.y = random_distance * np.sin(angle)
+            #self.get_logger().info(f"sim_point.point.x: {sim_point.point.x}")
+            #self.get_logger().info(f"sim_point.point.y: {sim_point.point.y}")
 
             # Lookup the transform from 'map' to 'base_link'
             try:
                 transform2 = self.tf_buffer2.lookup_transform('map', 'base_link', rclpy.time.Time())
-                translation = transform2.transform.translation
-                rotation = transform2.transform.rotation
-                #self.get_logger().info(f"Translation: x={translation.x}, y={translation.y}, z={translation.z}")
-                #self.get_logger().info(f"Rotation: x={rotation.x}, y={rotation.y}, z={rotation.z}, w={rotation.w}")
             except Exception as e:
-                self.get_logger().error(f"Transform lookup failed: {str(e)}")
-
+                pass
 
             # Convert point to map frame
             try:
                 transformed_point = do_transform_point(sim_point, transform2)
-                #self.get_logger().info(f"transformed_point: {transformed_point}")
-                if self.point_in_zone(transformed_point) == True : #and modified_msg[index_value] < random_distance:
-                    self.get_logger().info(f"Distance to dust zone: {random_distance}")
+                #self.get_logger().info(f"TP_x: {transformed_point.point.x}, TP_y: {transformed_point.point.x}")
+
+                #self.get_logger().info(f"Obs dist: {modified_msg.ranges[index_value]}")
+                #self.get_logger().info(f"random_distance: {random_distance}")
+                
+                if self.point_in_zone(transformed_point) == True and modified_msg.ranges[index_value] > random_distance:
+                    self.get_logger().info(f"Point is in the dust zone")
                     return random_distance
             except Exception as e:
-                self.get_logger().error(f"Transform lookup failed: {str(e)}")
+                pass
+
+        return modified_msg.ranges[index_value]
 
 
     def calc_max_dist_to_zone(self):
