@@ -167,19 +167,18 @@ class SimulatedDustEffect(Node):
     def apply_lidar_noise(self, modified_msg : LaserScan, index_value):
         # This function applies the dust noise to the LiDAR measurement
 
-        if modified_msg.ranges[index_value] > 100:
-            # If the dust within 55cm of the robot, it absorbs the LiDAR measurements with 90% chance
-            if self.dist_to_zone < self.dust_absorption_dist_val:
-                if random.random() < self.dust_absorption_val:
-                    modified_msg.ranges[index_value] = np.inf
+        # If the dust within 55cm of the robot, it absorbs the LiDAR measurements with 90% chance
+        if self.dist_to_zone < self.dust_absorption_dist_val:
+            if random.random() < self.dust_absorption_val:
+                modified_msg.ranges[index_value] = np.inf
 
+        else:
+            # If the robot is further away than 55cm, the LiDAR will detect dust with parameter chance
+            if random.random() < self.dust_transparency_val:
+                modified_msg.ranges[index_value] = np.inf  # Dust not detected
             else:
-                # If the robot is further away than 55cm, the LiDAR will detect dust with parameter chance
-                if random.random() < self.dust_transparency_val:
-                    modified_msg.ranges[index_value] = np.inf  # Dust not detected
-                else:
-                    max_dust_distance = np.min([modified_msg.ranges[index_value], self.calc_max_dist_to_zone()])
-                    modified_msg.ranges[index_value] = random.uniform(self.dist_to_zone, max_dust_distance)  # Dust detected
+                max_dust_distance = np.min([modified_msg.ranges[index_value], self.calc_max_dist_to_zone()])
+                modified_msg.ranges[index_value] = random.uniform(self.dist_to_zone, max_dust_distance)  # Dust detected
 
 
     def calc_max_dist_to_zone(self):
