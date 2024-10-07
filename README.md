@@ -38,7 +38,7 @@ Here's how to install the packages and get the code working:
 
 3. **Modifications**:  
    - For NAV2, modify the following file:
-     - **File**: `turtlebot4/turtlebot4_navigation/config/slam.yaml`
+     - **File**: `src/turtlebot4/turtlebot4_navigation/config/slam.yaml`
      - **Change**: On line 16, replace:
        ```python
        'scan_topic: scan',
