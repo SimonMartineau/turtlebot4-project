@@ -1,54 +1,90 @@
 # 2024 TalTech Internship Codes
 
 ## Overview
-This repository contains two ROS2 packages I designed for the SLAM experiments with the Turtlebot4 robot.
+This repository contains two ROS2 packages I designed for the SLAM experiments with the Turtlebot4 robot. These packages introduce noise for testing the robustness of SLAM algorithms.
 
 ### Packages
 1. **Package 1**: [turtlebot4_slam_noise]  
-   - [This packages contains the programs that generate visual and LiDAR noise for the experiment. The 2 programs in question are called visual_noise.py and lidar_dust_noise_v4.py respectively. The rest of the codes that are not used in the final experiment are in the milestone_codes folder].
+   - This package contains the programs that generate visual and LiDAR noise for the experiment. The two main programs are:
+    - visual_noise.py: Introduces visual noise to the camera data.
+    - lidar_dust_noise_v4.py: Adds noise to the LiDAR data.
+   - Additional programs that were not part of the final experiment are stored in the 'milestone_codes' directory.
    
 2. **Package 2**: [turtlebot4_bringup]  
-   - [This package contains the launch files and the configuration files to setup the visual and LiDAR noise experiments.].
+   - This package contains the launch and configuration files required to setup the visual and LiDAR noise experiments.
 
 ## Table of Contents
 - [Installation](#installation)
 - [Dependencies](#dependencies)
 - [Usage](#usage)
-- [Package 1 Details](#package-1-details)
-- [Package 2 Details](#package-2-details)
+- [License](#license)
 
 ## Installation
-To install and build the packages, follow the steps below:
+To install and build the packages, follow these steps:
 
 1. Clone the repository into your ROS2 workspace:
    ```bash
    cd ~/ros2_ws/src
    git clone https://github.com/SimonMartineau/turtlebot4-project.git
+   ```
 
 ## Dependencies
-To be able to replicate my experiments, here are the 2 programs that you need to install:
+Here's how to install the packages and get the code working:
 
-1. Install NAV2:
+1. **NAV2**:  
+   Follow the installation guide [here](https://turtlebot.github.io/turtlebot4-user-manual/software/overview.html).
 
-   Follow the installation guide here: https://docs.nav2.org/getting_started/index.html#installation
-   
-2. Install RTAB-Map:
+2. **RTAB-Map**:  
+   Follow the installation guide [here](https://github.com/introlab/rtabmap/wiki/Installation).
 
-   Follow the installation guide here: https://github.com/introlab/rtabmap/wiki/Installation
-   
-3. You will also need to modify one aspect of these programs to make them work together. In NAV2, you will need to change /scan to /modified_scan. For RTAB-Map, you will need to change image_raw to image_modified.
+3. **Modifications**:  
+   - In NAV2, change the topic `/scan` to `/modified_scan`.
+   - For RTAB-Map, modify the following file:
+     - **File**: `install/rtabmap_launch/share/rtabmap_launch/launch/rtabmap_bringup.launch.py`
+     - **Change**: On line 57, replace:
+       ```python
+       'rgb_topic': '/camera/pi3/color/image_raw',
+       ```
+       with:
+       ```python
+       'rgb_topic': '/image_modified',
+       ```
+       This change ensures RTAB-Map subscribes to the topic with the noisy image data.
 
 ## Usage
 
-1. In turtlebot4_bringup/config, setup the visual and LiDAR noise by modifying the yaml files.
+1. **Configure Noise Settings**:  
+   In the `turtlebot4_bringup/config` folder, modify the `.yaml` files to adjust the visual and LiDAR noise settings according to your experiment requirements.
 
-2. Build and source your ROS2 workspace if you haven't done so. 
+2. **Build and Source Workspace**:  
+   Ensure that your ROS 2 workspace is built and sourced:
+   ```bash
+   colcon build
+   source ~/ros2_ws/install/setup.bash
 
-3. Run the all_noise.launch.py file for example.
+3. **Run Noise Experiments**:  
+   You can run the noise experiments using the launch file:
+   ```bash
+   ros2 launch turtlebot4_bringup all_noise.launch.py
 
-4. Run NAV2 or RTAB-Map with start_nav2.launch.py or start_rtabmap.launch.py.
 
-## 
+4. **Run NAV2 or RTAB-Map**:  
+   After the noise experiments are running, you can launch either NAV2 or RTAB-Map:
+   - For NAV2:
+     ```bash
+     ros2 launch turtlebot4_bringup start_nav2.launch.py
+     ```
+   - For RTAB-Map:
+     ```bash
+     ros2 launch turtlebot4_bringup start_rtabmap.launch.py
+     ```
+
+## License
+This project is licensed under the [MIT License](LICENSE).
+
+
+
+
 
 
 
