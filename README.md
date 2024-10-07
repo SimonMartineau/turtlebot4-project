@@ -1,13 +1,13 @@
 # 2024 TalTech Internship Codes
-
+ 
 ## Overview
 This repository contains two ROS2 packages I designed for the SLAM experiments with the Turtlebot4 robot. These packages introduce noise for testing the robustness of SLAM algorithms.
 
 ### Packages
 1. **Package 1**: [turtlebot4_slam_noise]  
    - This package contains the programs that generate visual and LiDAR noise for the experiment. The two main programs are:
-    - visual_noise.py: Introduces visual noise to the camera data.
-    - lidar_dust_noise_v4.py: Adds noise to the LiDAR data.
+     - visual_noise.py: Introduces visual noise to the camera data.
+     - lidar_dust_noise_v4.py: Adds noise to the LiDAR data.
    - Additional programs that were not part of the final experiment are stored in the 'milestone_codes' directory.
    
 2. **Package 2**: [turtlebot4_bringup]  
@@ -17,7 +17,6 @@ This repository contains two ROS2 packages I designed for the SLAM experiments w
 - [Installation](#installation)
 - [Dependencies](#dependencies)
 - [Usage](#usage)
-- [License](#license)
 
 ## Installation
 To install and build the packages, follow these steps:
@@ -38,7 +37,18 @@ Here's how to install the packages and get the code working:
    Follow the installation guide [here](https://github.com/introlab/rtabmap/wiki/Installation).
 
 3. **Modifications**:  
-   - In NAV2, change the topic `/scan` to `/modified_scan`.
+   - For NAV2, modify the following file:
+     - **File**: `turtlebot4/turtlebot4_navigation/config/slam.yaml`
+     - **Change**: On line 16, replace:
+       ```python
+       'scan_topic: scan',
+       ```
+       with:
+       ```python
+       'scan_topic: scan_modified',
+       ```
+       This change ensures NAV2 subscribes to the topic with the noisy LiDAR data.
+       
    - For RTAB-Map, modify the following file:
      - **File**: `install/rtabmap_launch/share/rtabmap_launch/launch/rtabmap_bringup.launch.py`
      - **Change**: On line 57, replace:
@@ -78,9 +88,6 @@ Here's how to install the packages and get the code working:
      ```bash
      ros2 launch turtlebot4_bringup start_rtabmap.launch.py
      ```
-
-## License
-This project is licensed under the [MIT License](LICENSE).
 
 
 
